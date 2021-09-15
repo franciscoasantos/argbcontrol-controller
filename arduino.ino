@@ -8,7 +8,7 @@
 
 const char* ssid = "xpto";
 const char* password = "qwer@1234";
-const char* webSocketsServerHost = "192.168.1.239";
+const char* webSocketsServerHost = "services.franciscosantos.net";
 const int webSocketsServerPort = 3000;
 
 using namespace websockets;
