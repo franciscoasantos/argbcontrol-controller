@@ -2,6 +2,9 @@
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoWebsockets.h>
 #include <ArduinoJson.h>
+#include <ESPDateTime.h>
+
+using namespace websockets;
 
 #define PIN 13
 #define NUM 20
@@ -11,26 +14,13 @@ const char* password = "qwer@1234";
 const char* webSocketsServerHost = "services.franciscosantos.net";
 const int webSocketsServerPort = 3000;
 
-using namespace websockets;
-
-StaticJsonDocument<100> doc;
-
-Adafruit_NeoPixel fita = Adafruit_NeoPixel(NUM, PIN, NEO_GRB + NEO_KHZ800);
 WebsocketsClient client;
+StaticJsonDocument<100> doc;
+Adafruit_NeoPixel fita = Adafruit_NeoPixel(NUM, PIN, NEO_GRB + NEO_KHZ800);
 
 void setup() {
   Serial.begin(115200);
   pinMode(PIN, OUTPUT);
-
-  WiFi.begin(ssid, password);
-  Serial.println("Connecting");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println("");
-  Serial.println("Connected to WiFi network!");
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -52,6 +42,36 @@ void setup() {
   });
 }
 
+int seconds = -10;
+void loop() {
+  if (DateTime.getTime() - 5 >= seconds) {
+    VerifyConnections();
+    seconds = DateTime.getTime();
+  }
+  client.poll();
+}
+
+void VerifyConnections() {
+  if (WiFi.status() != WL_CONNECTED)
+    ConnectWifi();
+
+  if (!client.available())
+    ConnectServer();
+}
+
+void ConnectWifi() {
+  Serial.println("Connecting WiFi");
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println("");
+  Serial.println("Connected to WiFi network!");
+}
+
 void ConnectServer() {
   bool connected = client.connect(webSocketsServerHost, webSocketsServerPort, "/?clientId=0");
 
@@ -59,21 +79,13 @@ void ConnectServer() {
     Serial.println("WebSockets Connected!");
   else
     Serial.println("WebSockets Not Connected!");
+
   return;
 }
 
-void loop() {
-  if (client.available()) {
-    client.poll();
+void setColor(int r, int g, int b) {
+  for (int i = 0; i < NUM; i++) {
+    fita.setPixelColor(i, r, g, b);
   }
-  else {
-    ConnectServer();
-  }
-}
-
-void setColor(int r, int g, int b){
-   for (int i = 0; i < NUM; i++) {
-      fita.setPixelColor(i, r, g, b);
-    }
-    fita.show();
+  fita.show();
 }
