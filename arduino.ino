@@ -14,9 +14,11 @@ const char* password = "qwer@1234";
 const char* webSocketsServerHost = "services.franciscosantos.net";
 const int webSocketsServerPort = 3000;
 
+Adafruit_NeoPixel fita = Adafruit_NeoPixel(NUM, PIN, NEO_GRB + NEO_KHZ800);
 WebsocketsClient client;
 StaticJsonDocument<100> doc;
-Adafruit_NeoPixel fita = Adafruit_NeoPixel(NUM, PIN, NEO_GRB + NEO_KHZ800);
+DeserializationError error;
+int ledMode, red, green, blue;
 
 void setup() {
   Serial.begin(115200);
@@ -27,16 +29,17 @@ void setup() {
     Serial.print("Mensagem recebida: ");
     Serial.println(message.data());
 
-    DeserializationError error = deserializeJson(doc, message.data());
+    error = deserializeJson(doc, message.data());
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.f_str());
       return;
     }
 
-    int red = doc["R"].as<int>();
-    int green = doc["G"].as<int>();
-    int blue = doc["B"].as<int>();
+    ledMode = doc["M"].as<int>();
+    red = doc["R"].as<int>();
+    green = doc["G"].as<int>();
+    blue = doc["B"].as<int>();
 
     setColor(red, green, blue);
   });
