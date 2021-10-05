@@ -1,7 +1,6 @@
 #include <WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoWebsockets.h>
-#include <ArduinoJson.h>
 #include <ESPDateTime.h>
 
 using namespace websockets;
@@ -16,8 +15,6 @@ const int webSocketsServerPort = 3000;
 
 Adafruit_NeoPixel fita = Adafruit_NeoPixel(NUM, PIN, NEO_GRB + NEO_KHZ800);
 WebsocketsClient client;
-StaticJsonDocument<100> doc;
-DeserializationError error;
 int ledMode, red, green, blue;
 
 void setup() {
@@ -29,19 +26,14 @@ void setup() {
     Serial.print("Mensagem recebida: ");
     Serial.println(message.data());
 
-    error = deserializeJson(doc, message.data());
-    if (error) {
-      Serial.print(F("deserializeJson() failed: "));
-      Serial.println(error.f_str());
-      return;
+    ledMode = hexToDec(message.data().substring(0, 1));
+    if (ledMode == 0) {
+      red = hexToDec(message.data().substring(1, 3));
+      green = hexToDec(message.data().substring(3, 5));
+      blue = hexToDec(message.data().substring(5, 7));
+    
+      setColor(red, green, blue);
     }
-
-    ledMode = doc["M"].as<int>();
-    red = doc["R"].as<int>();
-    green = doc["G"].as<int>();
-    blue = doc["B"].as<int>();
-
-    setColor(red, green, blue);
   });
 }
 
@@ -91,4 +83,23 @@ void setColor(int r, int g, int b) {
     fita.setPixelColor(i, r, g, b);
   }
   fita.show();
+}
+
+unsigned int hexToDec(String hexString) {
+
+  unsigned int decValue = 0;
+  int nextInt;
+
+  for (int i = 0; i < hexString.length(); i++) {
+
+    nextInt = int(hexString.charAt(i));
+    if (nextInt >= 48 && nextInt <= 57) nextInt = map(nextInt, 48, 57, 0, 9);
+    if (nextInt >= 65 && nextInt <= 70) nextInt = map(nextInt, 65, 70, 10, 15);
+    if (nextInt >= 97 && nextInt <= 102) nextInt = map(nextInt, 97, 102, 10, 15);
+    nextInt = constrain(nextInt, 0, 15);
+
+    decValue = (decValue * 16) + nextInt;
+  }
+
+  return decValue;
 }
