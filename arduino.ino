@@ -26,11 +26,11 @@ void setup() {
     Serial.print("Mensagem recebida: ");
     Serial.println(message.data());
 
-    ledMode = hexToDec(message.data().substring(0, 1));
+    ledMode = message.data().substring(0, 1).toInt();
     if (ledMode == 0) {
-      red = hexToDec(message.data().substring(1, 3));
-      green = hexToDec(message.data().substring(3, 5));
-      blue = hexToDec(message.data().substring(5, 7));
+      red = message.data().substring(1, 4).toInt();
+      green = message.data().substring(4, 7).toInt();
+      blue = message.data().substring(7, 10).toInt();
     
       setColor(red, green, blue);
     }
@@ -83,23 +83,4 @@ void setColor(int r, int g, int b) {
     fita.setPixelColor(i, r, g, b);
   }
   fita.show();
-}
-
-unsigned int hexToDec(String hexString) {
-
-  unsigned int decValue = 0;
-  int nextInt;
-
-  for (int i = 0; i < hexString.length(); i++) {
-
-    nextInt = int(hexString.charAt(i));
-    if (nextInt >= 48 && nextInt <= 57) nextInt = map(nextInt, 48, 57, 0, 9);
-    if (nextInt >= 65 && nextInt <= 70) nextInt = map(nextInt, 65, 70, 10, 15);
-    if (nextInt >= 97 && nextInt <= 102) nextInt = map(nextInt, 97, 102, 10, 15);
-    nextInt = constrain(nextInt, 0, 15);
-
-    decValue = (decValue * 16) + nextInt;
-  }
-
-  return decValue;
 }
