@@ -1,12 +1,11 @@
 import machine
 import neopixel
 import _thread
-import time
 
 from uwebsockets.protocol import Websocket
 
 #Dados de conexão
-wsHost = 'ws://192.168.1.239:3000/?clientId=0'
+wsHost = 'ws://services.franciscosantos.net:3000/?clientId=0'
 
 # [Pin, Qtd. Leds]
 cama = [13, 107]
@@ -36,7 +35,7 @@ def WebSocket():
             cor[1] = int(mensagem[4:7])
             cor[2] = int(mensagem[7:10])
     except:
-        print("erro")
+        print("Erro no servidor, reconetando...")
         WebSocket()
 
 # def fade():
