@@ -5,58 +5,86 @@
 
 using namespace websockets;
 
-#define CAMA_PIN 13
-#define CAMA_NUM 107
-
-#define MESA1_PIN 12
-#define MESA1_NUM 89
-
-#define MESA2_PIN 14
-#define MESA2_NUM 70
-
+/* Dados de conexão */
 const char* ssid = "xpto";
 const char* password = "qwer@1234";
 const char* webSocketsServerHost = "services.franciscosantos.net";
 const int webSocketsServerPort = 3000;
 
-Adafruit_NeoPixel fitaCama = Adafruit_NeoPixel(CAMA_NUM, CAMA_PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel fitaMesa1 = Adafruit_NeoPixel(MESA1_NUM, MESA1_PIN, NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel fitaMesa2 = Adafruit_NeoPixel(MESA2_NUM, MESA2_PIN, NEO_GRB + NEO_KHZ800);
+/* [Pin, Qtd. Leds] */
+const int cama[] = {13, 107};
+const int mesa1[] = {12, 89};
+const int mesa2[] = {14, 70};
+
+/* Instância das Fitas de led */
+Adafruit_NeoPixel fitaCama = Adafruit_NeoPixel(cama[1], cama[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel fitaMesa1 = Adafruit_NeoPixel(mesa1[1], mesa1[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel fitaMesa2 = Adafruit_NeoPixel(mesa2[1], mesa2[0], NEO_GRB + NEO_KHZ800);
 WebsocketsClient client;
-int ledMode, red, green, blue;
+
+/* [modo, r, g, g] */
+/* 0 = Estático | 1 = Fade */
+int corAnterior[] = {0, 0, 0, 0};
+int cor[] = {0, 255, 0, 0};
 
 void setup() {
   Serial.begin(115200);
-  pinMode(CAMA_PIN, OUTPUT);
-  pinMode(MESA1_PIN, OUTPUT);
-  pinMode(MESA2_PIN, OUTPUT);
-  fitaCama.begin();
-  fitaMesa1.begin();
-  fitaMesa2.begin();
 
+  pinMode(cama[0], OUTPUT);
+  pinMode(mesa1[0], OUTPUT);
+  pinMode(mesa2[0], OUTPUT);
+
+  fitaCama.begin();
+  fitaCama.setBrightness(255);
+  fitaMesa1.begin();
+  fitaMesa1.setBrightness(255);
+  fitaMesa2.begin();
+  fitaMesa2.setBrightness(255);
+ 
+  xTaskCreate(WebSocket, "WebSocket Task", 8192, NULL, 1, NULL);
+  xTaskCreate(Connection, "Connection Task", 8192, NULL, 1, NULL);
+}
+
+void WebSocket(void * parameter) {
   client.onMessage([&](WebsocketsMessage message)
   {
     Serial.print("Mensagem recebida: ");
     Serial.println(message.data());
 
-    ledMode = message.data().substring(0, 1).toInt();
-    if (ledMode == 0) {
-      red = message.data().substring(1, 4).toInt();
-      green = message.data().substring(4, 7).toInt();
-      blue = message.data().substring(7, 10).toInt();
-    
-      setColor(red, green, blue);
-    }
+    cor[0] = message.data().substring(0, 1).toInt();
+    cor[1] = message.data().substring(1, 4).toInt();
+    cor[2] = message.data().substring(4, 7).toInt();
+    cor[3] = message.data().substring(7, 10).toInt();
   });
+  vTaskDelete(NULL);
 }
 
-int seconds = -10;
-void loop() {
-  if (DateTime.getTime() - 5 >= seconds) {
-    VerifyConnections();
-    seconds = DateTime.getTime();
+void Connection(void * parameter) {
+  int seconds = 0;
+  while (true) {
+    if (DateTime.getTime() - 5 >= seconds) {
+      VerifyConnections();
+      seconds = DateTime.getTime();
+    }
+    client.poll();
   }
-  client.poll();
+  vTaskDelete(NULL);
+}
+
+void loop() {
+  if (cor[0] == 0) {
+    if (corAnterior != cor) {
+      corAnterior[1] = cor[0];
+      corAnterior[1] = cor[1];
+      corAnterior[2] = cor[2];
+      corAnterior[3] = cor[3];
+
+      setColor(cor[1], cor[2], cor[3]);
+    }
+  }
+  else {
+    Fade();
+  }
 }
 
 void VerifyConnections() {
@@ -91,12 +119,34 @@ void ConnectServer() {
   return;
 }
 
-void setColor(int r, int g, int b) {
-  for (int j = 0; j < CAMA_NUM; j++) {
-    fitaCama.setPixelColor(j, r, g, b);
-    fitaMesa1.setPixelColor(j, r, g, b);
-    fitaMesa2.setPixelColor(j, r, g, b);
+void Fade() {
+  int r = cor[1];
+  int g = cor[2];
+  int b = cor[3];
+
+  while (cor[0] == 1) {
+    if (r > 0 && b == 0) {
+      r -= 3;
+      g += 3;
+    }
+    if (g > 0 && r == 0) {
+      g -= 3;
+      b += 3;
+    }
+    if (b > 0 && g == 0) {
+      r += 3;
+      b -= 3;
+    }
+    setColor(r, g, b);
+    delay(100);
   }
+}
+
+void setColor(int r, int g, int b) {
+  fitaCama.fill(fitaCama.Color(r, g, b), 0);
+  fitaMesa1.fill(fitaMesa1.Color(r, g, b), 0);
+  fitaMesa2.fill(fitaMesa2.Color(r, g, b), 0);
+
   fitaCama.show();
   fitaMesa1.show();
   fitaMesa2.show();
