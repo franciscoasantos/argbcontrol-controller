@@ -25,7 +25,7 @@ WebsocketsClient client;
 /* [modo, r, g, g] */
 /* 0 = Estático | 1 = Fade */
 int corAnterior[] = {0, 0, 0, 0};
-int cor[] = {0, 255, 0, 0};
+int cor[] = {0, 0, 0, 0};
 
 void setup() {
   Serial.begin(115200);
@@ -41,8 +41,8 @@ void setup() {
   fitaMesa2.begin();
   fitaMesa2.setBrightness(255);
  
-  xTaskCreate(WebSocket, "WebSocket Task", 8192, NULL, 1, NULL);
-  xTaskCreate(Connection, "Connection Task", 8192, NULL, 1, NULL);
+  xTaskCreatePinnedToCore(Connection, "Connection Task", 8192, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(WebSocket, "WebSocket Task", 8192, NULL, 1, NULL, 1);
 }
 
 void WebSocket(void * parameter) {
@@ -123,22 +123,24 @@ void Fade() {
   int r = cor[1];
   int g = cor[2];
   int b = cor[3];
+  int increase = 1;
+  int fadeDelay = 20;
 
   while (cor[0] == 1) {
     if (r > 0 && b == 0) {
-      r -= 3;
-      g += 3;
+      r -= increase;
+      g += increase;
     }
     if (g > 0 && r == 0) {
-      g -= 3;
-      b += 3;
+      g -= increase;
+      b += increase;
     }
     if (b > 0 && g == 0) {
-      r += 3;
-      b -= 3;
+      r += increase;
+      b -= increase;
     }
     setColor(r, g, b);
-    delay(100);
+    delay(fadeDelay);
   }
 }
 
