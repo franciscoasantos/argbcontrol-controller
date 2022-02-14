@@ -26,6 +26,10 @@ WebsocketsClient client;
 /* 0 = Estático | 1 = Fade */
 int corAnterior[] = {0, 0, 0, 0};
 int cor[] = {0, 0, 0, 0};
+int seconds = -5;
+
+//Task Handles
+TaskHandle_t fadeHandle;
 
 void setup() {
   Serial.begin(115200);
@@ -40,12 +44,7 @@ void setup() {
   fitaMesa1.setBrightness(255);
   fitaMesa2.begin();
   fitaMesa2.setBrightness(255);
- 
-  xTaskCreatePinnedToCore(Connection, "Connection Task", 8192, NULL, 1, NULL, 1);
-  xTaskCreatePinnedToCore(WebSocket, "WebSocket Task", 8192, NULL, 1, NULL, 1);
-}
 
-void WebSocket(void * parameter) {
   client.onMessage([&](WebsocketsMessage message)
   {
     Serial.print("Mensagem recebida: ");
@@ -55,36 +54,31 @@ void WebSocket(void * parameter) {
     cor[1] = message.data().substring(1, 4).toInt();
     cor[2] = message.data().substring(4, 7).toInt();
     cor[3] = message.data().substring(7, 10).toInt();
-  });
-  vTaskDelete(NULL);
-}
 
-void Connection(void * parameter) {
-  int seconds = 0;
-  while (true) {
-    if (DateTime.getTime() - 5 >= seconds) {
-      VerifyConnections();
-      seconds = DateTime.getTime();
+    if (cor[0] == 0) {
+      if (corAnterior != cor) {
+        corAnterior[1] = cor[0];
+        corAnterior[1] = cor[1];
+        corAnterior[2] = cor[2];
+        corAnterior[3] = cor[3];
+
+        setColor(cor[1], cor[2], cor[3]);
+      }
     }
-    client.poll();
-  }
-  vTaskDelete(NULL);
+    else {
+      if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
+        xTaskCreatePinnedToCore(Fade, "Fade Task", 8192, NULL, 1, &fadeHandle, 1);
+      }
+    }
+  });
 }
 
 void loop() {
-  if (cor[0] == 0) {
-    if (corAnterior != cor) {
-      corAnterior[1] = cor[0];
-      corAnterior[1] = cor[1];
-      corAnterior[2] = cor[2];
-      corAnterior[3] = cor[3];
-
-      setColor(cor[1], cor[2], cor[3]);
-    }
+  if (DateTime.getTime() - 5 >= seconds) {
+    VerifyConnections();
+    seconds = DateTime.getTime();
   }
-  else {
-    Fade();
-  }
+  client.poll();
 }
 
 void VerifyConnections() {
@@ -119,7 +113,7 @@ void ConnectServer() {
   return;
 }
 
-void Fade() {
+void Fade(void * parameter) {
   int r = cor[1];
   int g = cor[2];
   int b = cor[3];
@@ -142,6 +136,7 @@ void Fade() {
     setColor(r, g, b);
     delay(fadeDelay);
   }
+  vTaskDelete(NULL);
 }
 
 void setColor(int r, int g, int b) {
