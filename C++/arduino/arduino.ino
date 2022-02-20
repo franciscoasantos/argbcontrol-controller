@@ -5,11 +5,12 @@
 
 using namespace websockets;
 
-/* Dados de conexão */
+/* Configurações de conexão */
 const char* ssid = "xpto";
 const char* password = "qwer@1234";
 const char* webSocketsServerHost = "services.franciscosantos.net";
 const int webSocketsServerPort = 3000;
+WebsocketsClient client;
 
 /* [Pin, Qtd. Leds] */
 const int cama[] = {13, 107};
@@ -20,7 +21,6 @@ const int mesa2[] = {14, 70};
 Adafruit_NeoPixel fitaCama = Adafruit_NeoPixel(cama[1], cama[0], NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel fitaMesa1 = Adafruit_NeoPixel(mesa1[1], mesa1[0], NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel fitaMesa2 = Adafruit_NeoPixel(mesa2[1], mesa2[0], NEO_GRB + NEO_KHZ800);
-WebsocketsClient client;
 
 /* [modo, r, g, g] */
 /* 0 = Estático | 1 = Fade */
@@ -50,26 +50,7 @@ void setup() {
     Serial.print("Mensagem recebida: ");
     Serial.println(message.data());
 
-    cor[0] = message.data().substring(0, 1).toInt();
-    cor[1] = message.data().substring(1, 4).toInt();
-    cor[2] = message.data().substring(4, 7).toInt();
-    cor[3] = message.data().substring(7, 10).toInt();
-
-    if (cor[0] == 0) {
-      if (corAnterior != cor) {
-        corAnterior[1] = cor[0];
-        corAnterior[1] = cor[1];
-        corAnterior[2] = cor[2];
-        corAnterior[3] = cor[3];
-
-        setColor(cor[1], cor[2], cor[3]);
-      }
-    }
-    else {
-      if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
-        xTaskCreatePinnedToCore(Fade, "Fade Task", 8192, NULL, 1, &fadeHandle, 1);
-      }
-    }
+    ProcessMessage(message.data());
   });
 }
 
@@ -113,10 +94,33 @@ void ConnectServer() {
   return;
 }
 
+void ProcessMessage(String message) {
+  cor[0] = message.substring(0, 1).toInt();
+
+  switch (cor[0]) {
+    case 0:
+      cor[1] = message.substring(1, 4).toInt();
+      cor[2] = message.substring(4, 7).toInt();
+      cor[3] = message.substring(7, 10).toInt();
+      if (corAnterior != cor) {
+        corAnterior[0] = cor[0];
+        corAnterior[1] = cor[1];
+        corAnterior[2] = cor[2];
+        corAnterior[3] = cor[3];
+
+        setColor(cor[1], cor[2], cor[3]);
+      }
+    case 1:
+      if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
+        xTaskCreatePinnedToCore(Fade, "Fade Task", 8192, NULL, 1, &fadeHandle, 1);
+      }
+  }
+}
+
 void Fade(void * parameter) {
-  int r = cor[1];
-  int g = cor[2];
-  int b = cor[3];
+  int r = 255;
+  int g = 0;
+  int b = 0;
   int increase = 1;
   int fadeDelay = 20;
 
