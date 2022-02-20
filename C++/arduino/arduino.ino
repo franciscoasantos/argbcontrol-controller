@@ -13,19 +13,19 @@ const int webSocketsServerPort = 3000;
 WebsocketsClient client;
 
 /* [Pin, Qtd. Leds] */
-const int cama[] = {13, 107};
-const int mesa1[] = {12, 89};
-const int mesa2[] = {14, 70};
+const int bed[] = {13, 107};
+const int tableA[] = {12, 89};
+const int tableB[] = {14, 70};
 
 /* Instância das Fitas de led */
-Adafruit_NeoPixel fitaCama = Adafruit_NeoPixel(cama[1], cama[0], NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel fitaMesa1 = Adafruit_NeoPixel(mesa1[1], mesa1[0], NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel fitaMesa2 = Adafruit_NeoPixel(mesa2[1], mesa2[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledBed = Adafruit_NeoPixel(bed[1], bed[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledTableA = Adafruit_NeoPixel(tableA[1], tableA[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledTableB = Adafruit_NeoPixel(tableB[1], tableB[0], NEO_GRB + NEO_KHZ800);
 
 /* [modo, r, g, g] */
 /* 0 = Estático | 1 = Fade */
-int corAnterior[] = {0, 0, 0, 0};
-int cor[] = {0, 0, 0, 0};
+String previousState[4];
+String currentState[4];
 int seconds = -5;
 
 //Task Handles
@@ -34,16 +34,16 @@ TaskHandle_t fadeHandle;
 void setup() {
   Serial.begin(115200);
 
-  pinMode(cama[0], OUTPUT);
-  pinMode(mesa1[0], OUTPUT);
-  pinMode(mesa2[0], OUTPUT);
+  pinMode(bed[0], OUTPUT);
+  pinMode(tableA[0], OUTPUT);
+  pinMode(tableB[0], OUTPUT);
 
-  fitaCama.begin();
-  fitaCama.setBrightness(255);
-  fitaMesa1.begin();
-  fitaMesa1.setBrightness(255);
-  fitaMesa2.begin();
-  fitaMesa2.setBrightness(255);
+  ledBed.begin();
+  ledBed.setBrightness(255);
+  ledTableA.begin();
+  ledTableA.setBrightness(255);
+  ledTableB.begin();
+  ledTableB.setBrightness(255);
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -95,24 +95,24 @@ void ConnectServer() {
 }
 
 void ProcessMessage(String message) {
-  cor[0] = message.substring(0, 1).toInt();
+  currentState[0] = message.substring(0, 1);
 
-  switch (cor[0]) {
+  switch (currentState[0].toInt()) {
     case 0:
-      cor[1] = message.substring(1, 4).toInt();
-      cor[2] = message.substring(4, 7).toInt();
-      cor[3] = message.substring(7, 10).toInt();
-      if (corAnterior != cor) {
-        corAnterior[0] = cor[0];
-        corAnterior[1] = cor[1];
-        corAnterior[2] = cor[2];
-        corAnterior[3] = cor[3];
+      currentState[1] = message.substring(1, 4);
+      currentState[2] = message.substring(4, 7);
+      currentState[3] = message.substring(7, 10);
+      if (previousState != currentState) {
+        previousState[0] = currentState[0];
+        previousState[1] = currentState[1];
+        previousState[2] = currentState[2];
+        previousState[3] = currentState[3];
 
-        setColor(cor[1], cor[2], cor[3]);
+        setColor(currentState[1].toInt(), currentState[2].toInt(), currentState[3].toInt());
       }
     case 1:
       if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
-        xTaskCreatePinnedToCore(Fade, "Fade Task", 8192, NULL, 1, &fadeHandle, 1);
+        xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
       }
   }
 }
@@ -124,7 +124,7 @@ void Fade(void * parameter) {
   int increase = 1;
   int fadeDelay = 20;
 
-  while (cor[0] == 1) {
+  while (currentState[0] == "1") {
     if (r > 0 && b == 0) {
       r -= increase;
       g += increase;
@@ -144,11 +144,11 @@ void Fade(void * parameter) {
 }
 
 void setColor(int r, int g, int b) {
-  fitaCama.fill(fitaCama.Color(r, g, b), 0);
-  fitaMesa1.fill(fitaMesa1.Color(r, g, b), 0);
-  fitaMesa2.fill(fitaMesa2.Color(r, g, b), 0);
+  ledBed.fill(ledBed.Color(r, g, b), 0);
+  ledTableA.fill(ledTableA.Color(r, g, b), 0);
+  ledTableB.fill(ledTableB.Color(r, g, b), 0);
 
-  fitaCama.show();
-  fitaMesa1.show();
-  fitaMesa2.show();
+  ledBed.show();
+  ledTableA.show();
+  ledTableB.show();
 }
