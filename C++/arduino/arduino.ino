@@ -111,7 +111,12 @@ void ProcessMessage(String message) {
         setColor(currentState[1].toInt(), currentState[2].toInt(), currentState[3].toInt());
       }
     case 1:
+      currentState[1] = message.substring(1, 5);
       if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
+        xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
+      }
+      else {
+        vTaskDelete(fadeHandle);
         xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
       }
   }
@@ -121,8 +126,8 @@ void Fade(void * parameter) {
   int r = 255;
   int g = 0;
   int b = 0;
-  int increase = 1;
-  int fadeDelay = 20;
+  int increase = currentState[1].substring(0, 2).toInt();
+  int fadeDelay = currentState[1].substring(2, 5).toInt();
 
   while (currentState[0] == "1") {
     if (r > 0 && b == 0) {
