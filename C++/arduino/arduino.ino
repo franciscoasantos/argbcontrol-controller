@@ -28,8 +28,12 @@ String previousState[4];
 String currentState[4];
 int seconds = -5;
 
-//Task Handles
+/* Task Handles */
 TaskHandle_t fadeHandle;
+
+/* Variáveis de controle do modo fade */
+int r, g, b;
+int increase, delayChange;
 
 void setup() {
   Serial.begin(115200);
@@ -44,6 +48,8 @@ void setup() {
   ledTableA.setBrightness(255);
   ledTableB.begin();
   ledTableB.setBrightness(255);
+
+  xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -99,6 +105,7 @@ void ProcessMessage(String message) {
 
   switch (currentState[0].toInt()) {
     case 0:
+      vTaskSuspend(fadeHandle);
       currentState[1] = message.substring(1, 4);
       currentState[2] = message.substring(4, 7);
       currentState[3] = message.substring(7, 10);
@@ -111,25 +118,18 @@ void ProcessMessage(String message) {
         setColor(currentState[1].toInt(), currentState[2].toInt(), currentState[3].toInt());
       }
     case 1:
-      currentState[1] = message.substring(1, 5);
-      if (fadeHandle == NULL || eTaskGetState(fadeHandle) != 2) {
-        xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
-      }
-      else {
-        vTaskDelete(fadeHandle);
-        xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
-      }
+      r = 255;
+      g = 0;
+      b = 0;
+      increase = message.substring(1, 3).toInt();
+      delayChange = message.substring(3, 6).toInt();
+
+      vTaskResume(fadeHandle);
   }
 }
 
 void Fade(void * parameter) {
-  int r = 255;
-  int g = 0;
-  int b = 0;
-  int increase = currentState[1].substring(0, 2).toInt();
-  int fadeDelay = currentState[1].substring(2, 5).toInt();
-
-  while (currentState[0] == "1") {
+  while (true) {
     if (r > 0 && b == 0) {
       r -= increase;
       g += increase;
@@ -143,9 +143,8 @@ void Fade(void * parameter) {
       b -= increase;
     }
     setColor(r, g, b);
-    delay(fadeDelay);
+    delay(delayChange);
   }
-  vTaskDelete(NULL);
 }
 
 void setColor(int r, int g, int b) {
