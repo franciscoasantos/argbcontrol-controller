@@ -22,18 +22,14 @@ Adafruit_NeoPixel ledBed = Adafruit_NeoPixel(bed[1], bed[0], NEO_GRB + NEO_KHZ80
 Adafruit_NeoPixel ledTableA = Adafruit_NeoPixel(tableA[1], tableA[0], NEO_GRB + NEO_KHZ800);
 Adafruit_NeoPixel ledTableB = Adafruit_NeoPixel(tableB[1], tableB[0], NEO_GRB + NEO_KHZ800);
 
-/* [modo, r, g, g] */
-/* 0 = Estático | 1 = Fade */
-String previousState[4];
-String currentState[4];
-int seconds = -5;
-
 /* Task Handles */
 TaskHandle_t fadeHandle;
 
 /* Variáveis de controle do modo fade */
 int r, g, b;
 int increase, delayChange;
+
+int seconds = -5;
 
 void setup() {
   Serial.begin(115200);
@@ -50,6 +46,7 @@ void setup() {
   ledTableB.setBrightness(255);
 
   xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
+  vTaskSuspend(fadeHandle);
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -101,22 +98,11 @@ void ConnectServer() {
 }
 
 void ProcessMessage(String message) {
-  currentState[0] = message.substring(0, 1);
-
-  switch (currentState[0].toInt()) {
+  switch (message.substring(0, 1).toInt()) {
     case 0:
       vTaskSuspend(fadeHandle);
-      currentState[1] = message.substring(1, 4);
-      currentState[2] = message.substring(4, 7);
-      currentState[3] = message.substring(7, 10);
-      if (previousState != currentState) {
-        previousState[0] = currentState[0];
-        previousState[1] = currentState[1];
-        previousState[2] = currentState[2];
-        previousState[3] = currentState[3];
-
-        setColor(currentState[1].toInt(), currentState[2].toInt(), currentState[3].toInt());
-      }
+      setColor(message.substring(1, 4).toInt(), message.substring(4, 7).toInt(), message.substring(7, 10).toInt());
+      break;
     case 1:
       r = 255;
       g = 0;
@@ -125,6 +111,7 @@ void ProcessMessage(String message) {
       delayChange = message.substring(3, 6).toInt();
 
       vTaskResume(fadeHandle);
+      break;
   }
 }
 
