@@ -46,7 +46,6 @@ void setup() {
   ledTableB.setBrightness(255);
 
   xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
-  vTaskSuspend(fadeHandle);
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -93,8 +92,6 @@ void ConnectServer() {
     Serial.println("WebSockets Connected!");
   else
     Serial.println("WebSockets Not Connected!");
-
-  return;
 }
 
 void ProcessMessage(String message) {
