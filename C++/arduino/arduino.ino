@@ -1,7 +1,6 @@
-#include <WiFi.h>
+ #include <WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoWebsockets.h>
-#include <ESPDateTime.h>
 
 using namespace websockets;
 
@@ -29,7 +28,10 @@ TaskHandle_t fadeHandle;
 int r, g, b;
 int increase, delayChange;
 
-int seconds = -5;
+/* Variáveis de controle da verificação de conexão */
+/* 100 ~ 1seg */
+int loops = 500;
+int count = loops;
 
 void setup() {
   Serial.begin(115200);
@@ -57,11 +59,13 @@ void setup() {
 }
 
 void loop() {
-  if (DateTime.getTime() - 5 >= seconds) {
+  if (count >= loops) {
     VerifyConnections();
-    seconds = DateTime.getTime();
+    count = 0;
   }
+  count++;
   client.poll();
+  delay(10);
 }
 
 void VerifyConnections() {
