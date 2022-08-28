@@ -1,4 +1,4 @@
- #include <WiFi.h>
+#include <WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoWebsockets.h>
 
@@ -23,6 +23,7 @@ Adafruit_NeoPixel ledTableB = Adafruit_NeoPixel(tableB[1], tableB[0], NEO_GRB + 
 
 /* Task Handles */
 TaskHandle_t fadeHandle;
+TaskHandle_t rainbowHandle;
 
 /* Variáveis de controle do modo fade */
 int r, g, b;
@@ -32,6 +33,8 @@ int increase, delayChange;
 /* 100 ~ 1seg */
 int loops = 500;
 int count = loops;
+int restartAt = 1440;
+int restartCount = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -48,6 +51,9 @@ void setup() {
   ledTableB.setBrightness(255);
 
   xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
+  vTaskSuspend(fadeHandle);
+  xTaskCreatePinnedToCore(Rainbow, "Rainbow Task", 1024, NULL, 1, &rainbowHandle, 1);
+  vTaskSuspend(rainbowHandle);
 
   client.onMessage([&](WebsocketsMessage message)
   {
@@ -61,8 +67,15 @@ void setup() {
 void loop() {
   if (count >= loops) {
     VerifyConnections();
+    restartCount++;
     count = 0;
+
+    if (restartCount >= restartAt) {
+      Serial.println("Restarting...");
+      ESP.restart();
+    }
   }
+
   count++;
   client.poll();
   delay(10);
@@ -99,9 +112,10 @@ void ConnectServer() {
 }
 
 void ProcessMessage(String message) {
+  vTaskSuspend(fadeHandle);
+  vTaskSuspend(rainbowHandle);
   switch (message.substring(0, 1).toInt()) {
     case 0:
-      vTaskSuspend(fadeHandle);
       setColor(message.substring(1, 4).toInt(), message.substring(4, 7).toInt(), message.substring(7, 10).toInt());
       break;
     case 1:
@@ -110,8 +124,11 @@ void ProcessMessage(String message) {
       b = 0;
       increase = message.substring(1, 3).toInt();
       delayChange = message.substring(3, 6).toInt();
-
       vTaskResume(fadeHandle);
+      break;
+    case 2:
+      delayChange = message.substring(1, 5).toInt();
+      vTaskResume(rainbowHandle);
       break;
   }
 }
@@ -132,6 +149,22 @@ void Fade(void * parameter) {
     }
     setColor(r, g, b);
     delay(delayChange);
+  }
+}
+
+void Rainbow(void * parameter) {
+  while (true) {
+    for (long firstPixelHue = 0; firstPixelHue < 5 * 65536; firstPixelHue += 256) {
+      ledBed.rainbow(firstPixelHue);
+      ledTableA.rainbow(firstPixelHue);
+      ledTableB.rainbow(firstPixelHue);
+
+      ledBed.show();
+      ledTableA.show();
+      ledTableB.show();
+
+      delay(delayChange);
+    }
   }
 }
 
