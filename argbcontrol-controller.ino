@@ -1,18 +1,24 @@
 #include <WiFi.h>
 #include <Adafruit_NeoPixel.h>
 #include <ArduinoWebsockets.h>
+#include <HTTPClient.h>
 
 using namespace websockets;
 
 /* Configurações de conexão */
 const char* ssid = "xpto";
 const char* password = "qwer@1234";
-const char* webSocketsServerHost = "services.franciscosantos.net";
-const int webSocketsServerPort = 3000;
-WebsocketsClient client;
+
+/* Configurações de servidor */
+const String serverHost = "services.franciscosantos.net:5000";
+const String webSocketPath = "/";
+const String authPath = "/api/authentication/token";
+
+/* Configurações do dispositivo */
+const String secret = "9a02d1e835264f6fa7f3d0ede49cea5a";
 
 /* [Pin, Qtd. Leds] */
-const int bed[] = {13, 107};
+const int bed[] = {13, 300};
 const int tableA[] = {12, 89};
 const int tableB[] = {14, 70};
 
@@ -35,6 +41,8 @@ int loops = 500;
 int count = loops;
 int restartAt = 1440;
 int restartCount = 0;
+
+WebsocketsClient client;
 
 void setup() {
   Serial.begin(115200);
@@ -62,6 +70,28 @@ void setup() {
 
     ProcessMessage(message.data());
   });
+}
+
+String Authenticate() {
+  HTTPClient http;
+
+  while (true) {
+    http.begin("http://" + serverHost + authPath);
+    http.addHeader("Authorization", secret);
+
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode == 200)
+    {
+      return http.getString();
+    }
+    else
+    {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+  }
+  http.end();
 }
 
 void loop() {
@@ -103,12 +133,17 @@ void ConnectWifi() {
 }
 
 void ConnectServer() {
-  bool connected = client.connect(webSocketsServerHost, webSocketsServerPort, "/?clientId=0");
+  String token = Authenticate();
 
-  if (connected)
+  bool connected = client.connect("ws://" + serverHost + webSocketPath + "?token=" + token);
+
+  if (connected) {
     Serial.println("WebSockets Connected!");
-  else
+  }
+  else {
     Serial.println("WebSockets Not Connected!");
+  }
+
 }
 
 void ProcessMessage(String message) {
