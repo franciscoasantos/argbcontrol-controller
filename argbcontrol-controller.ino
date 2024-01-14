@@ -10,22 +10,21 @@ const char* ssid = "xpto";
 const char* password = "qwer@1234";
 
 /* Configurações de servidor */
-const String serverHost = "services.franciscosantos.net:5000";
-const String webSocketPath = "/";
-const String authPath = "/api/authentication/token";
+const String serverHost = "144.217.94.131:5000";
+const String webSocketPath = "";
+const String authPath = "/api/token";
 
 /* Configurações do dispositivo */
-const String secret = "9a02d1e835264f6fa7f3d0ede49cea5a";
+const String clientId = "u8lf0zhHv0aEpHRbPMaAiA";
+const String clientSecret = "9a02d1e835264f6fa7f3d0ede49cea5a";
 
 /* [Pin, Qtd. Leds] */
-const int bed[] = {13, 300};
-const int tableA[] = {12, 89};
-const int tableB[] = {14, 70};
+const int strip1[] = {13, 300};
+const int strip2[] = {12, 300};
 
 /* Instância das Fitas de led */
-Adafruit_NeoPixel ledBed = Adafruit_NeoPixel(bed[1], bed[0], NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel ledTableA = Adafruit_NeoPixel(tableA[1], tableA[0], NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel ledTableB = Adafruit_NeoPixel(tableB[1], tableB[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip1 = Adafruit_NeoPixel(strip1[1], strip1[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip2 = Adafruit_NeoPixel(strip2[1], strip2[0], NEO_GRB + NEO_KHZ800);
 
 /* Task Handles */
 TaskHandle_t fadeHandle;
@@ -47,16 +46,13 @@ WebsocketsClient client;
 void setup() {
   Serial.begin(115200);
 
-  pinMode(bed[0], OUTPUT);
-  pinMode(tableA[0], OUTPUT);
-  pinMode(tableB[0], OUTPUT);
+  pinMode(strip1[0], OUTPUT);
+  pinMode(strip2[0], OUTPUT);
 
-  ledBed.begin();
-  ledBed.setBrightness(255);
-  ledTableA.begin();
-  ledTableA.setBrightness(255);
-  ledTableB.begin();
-  ledTableB.setBrightness(255);
+  ledStrip1.begin();
+  ledStrip1.setBrightness(255);
+  ledStrip2.begin();
+  ledStrip2.setBrightness(255);
 
   xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
   vTaskSuspend(fadeHandle);
@@ -70,28 +66,6 @@ void setup() {
 
     ProcessMessage(message.data());
   });
-}
-
-String Authenticate() {
-  HTTPClient http;
-
-  while (true) {
-    http.begin("http://" + serverHost + authPath);
-    http.addHeader("Authorization", secret);
-
-    int httpResponseCode = http.GET();
-
-    if (httpResponseCode == 200)
-    {
-      return http.getString();
-    }
-    else
-    {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-    }
-  }
-  http.end();
 }
 
 void loop() {
@@ -133,9 +107,9 @@ void ConnectWifi() {
 }
 
 void ConnectServer() {
-  String token = Authenticate();
+  String token = GetAuthToken();
 
-  bool connected = client.connect("ws://" + serverHost + webSocketPath + "?token=" + token);
+  bool connected = client.connect("ws://" + serverHost + webSocketPath + "/?client_id=" + clientId + "&access_token=" + token);
 
   if (connected) {
     Serial.println("WebSockets Connected!");
@@ -146,9 +120,34 @@ void ConnectServer() {
 
 }
 
+String GetAuthToken() {
+  HTTPClient http;
+
+  while (true) {
+    http.begin("http://" + serverHost + authPath);
+    http.addHeader("X-Client-Secret", clientSecret);
+    http.addHeader("X-Client-Id", clientId);
+
+    int httpResponseCode = http.GET();
+
+    if (httpResponseCode == 200)
+    {
+      return http.getString();
+    }
+    else
+    {
+      Serial.print("Error code: ");
+      Serial.println(httpResponseCode);
+    }
+    delay(1000);
+  }
+  http.end();
+}
+
 void ProcessMessage(String message) {
-  vTaskSuspend(fadeHandle);
-  vTaskSuspend(rainbowHandle);
+
+  SuspendTasks();
+
   switch (message.substring(0, 1).toInt()) {
     case 0:
       setColor(message.substring(1, 4).toInt(), message.substring(4, 7).toInt(), message.substring(7, 10).toInt());
@@ -190,13 +189,11 @@ void Fade(void * parameter) {
 void Rainbow(void * parameter) {
   while (true) {
     for (long firstPixelHue = 0; firstPixelHue < 5 * 65536; firstPixelHue += 256) {
-      ledBed.rainbow(firstPixelHue);
-      ledTableA.rainbow(firstPixelHue);
-      ledTableB.rainbow(firstPixelHue);
+      ledStrip1.rainbow(firstPixelHue);
+      ledStrip2.rainbow(firstPixelHue);
 
-      ledBed.show();
-      ledTableA.show();
-      ledTableB.show();
+      ledStrip1.show();
+      ledStrip2.show();
 
       delay(delayChange);
     }
@@ -204,11 +201,14 @@ void Rainbow(void * parameter) {
 }
 
 void setColor(int r, int g, int b) {
-  ledBed.fill(ledBed.Color(r, g, b), 0);
-  ledTableA.fill(ledTableA.Color(r, g, b), 0);
-  ledTableB.fill(ledTableB.Color(r, g, b), 0);
+  ledStrip1.fill(ledStrip1.Color(r, g, b), 0);
+  ledStrip2.fill(ledStrip2.Color(r, g, b), 0);
 
-  ledBed.show();
-  ledTableA.show();
-  ledTableB.show();
+  ledStrip1.show();
+  ledStrip2.show();
+}
+
+void SuspendTasks() {
+  vTaskSuspend(fadeHandle);
+  vTaskSuspend(rainbowHandle);
 }
