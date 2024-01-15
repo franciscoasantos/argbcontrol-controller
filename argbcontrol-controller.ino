@@ -23,8 +23,8 @@ const int strip1[] = {13, 300};
 const int strip2[] = {12, 300};
 
 /* Instância das Fitas de led */
-Adafruit_NeoPixel ledStrip1 = Adafruit_NeoPixel(strip1[1], strip1[0], NEO_GRB + NEO_KHZ800);
-Adafruit_NeoPixel ledStrip2 = Adafruit_NeoPixel(strip2[1], strip2[0], NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip1 = Adafruit_NeoPixel(strip1[1], strip1[0], NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel ledStrip2 = Adafruit_NeoPixel(strip2[1], strip2[0], NEO_GRBW + NEO_KHZ800);
 
 /* Task Handles */
 TaskHandle_t fadeHandle;
@@ -150,7 +150,7 @@ void ProcessMessage(String message) {
 
   switch (message.substring(0, 1).toInt()) {
     case 0:
-      setColor(message.substring(1, 4).toInt(), message.substring(4, 7).toInt(), message.substring(7, 10).toInt());
+      setColor(message.substring(1, 4).toInt(), message.substring(4, 7).toInt(), message.substring(7, 10).toInt(), message.substring(10, 13).toInt());
       break;
     case 1:
       r = 255;
@@ -200,9 +200,17 @@ void Rainbow(void * parameter) {
   }
 }
 
-void setColor(int r, int g, int b) {
+void setColor(int r, int g, int b) { 
   ledStrip1.fill(ledStrip1.Color(r, g, b), 0);
   ledStrip2.fill(ledStrip2.Color(r, g, b), 0);
+
+  ledStrip1.show();
+  ledStrip2.show();
+}
+
+void setColor(int r, int g, int b, int w) { 
+  ledStrip1.fill(ledStrip1.Color(r, g, b, w), 0);
+  ledStrip2.fill(ledStrip2.Color(r, g, b, w), 0);
 
   ledStrip1.show();
   ledStrip2.show();
