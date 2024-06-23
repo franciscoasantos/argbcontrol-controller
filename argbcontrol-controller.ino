@@ -10,7 +10,7 @@ const char* ssid = "xpto";
 const char* password = "qwer@1234";
 
 /* Configurações de servidor */
-const String serverHost = "144.217.94.131:5000";
+const String serverHost = "51.222.139.201:5000";
 const String webSocketPath = "";
 const String authPath = "/api/token";
 
@@ -19,12 +19,10 @@ const String clientId = "u8lf0zhHv0aEpHRbPMaAiA";
 const String clientSecret = "9a02d1e835264f6fa7f3d0ede49cea5a";
 
 /* [Pin, Qtd. Leds] */
-const int strip1[] = {13, 300};
-const int strip2[] = {12, 300};
+const int ledConfig[] = {13, 590};
 
 /* Instância das Fitas de led */
-Adafruit_NeoPixel ledStrip1 = Adafruit_NeoPixel(strip1[1], strip1[0], NEO_GRBW + NEO_KHZ800);
-Adafruit_NeoPixel ledStrip2 = Adafruit_NeoPixel(strip2[1], strip2[0], NEO_GRBW + NEO_KHZ800);
+Adafruit_NeoPixel led = Adafruit_NeoPixel(ledConfig[1], ledConfig[0], NEO_GRBW + NEO_KHZ800);
 
 /* Task Handles */
 TaskHandle_t fadeHandle;
@@ -34,7 +32,7 @@ TaskHandle_t rainbowHandle;
 int r, g, b;
 int increase, delayChange;
 
-/* Variáveis de controle da verificação de conexão */
+/* Variáveis de controle da verificação de conexão */ 
 /* 100 ~ 1seg */
 int loops = 500;
 int count = loops;
@@ -46,13 +44,18 @@ WebsocketsClient client;
 void setup() {
   Serial.begin(115200);
 
-  pinMode(strip1[0], OUTPUT);
-  pinMode(strip2[0], OUTPUT);
+  pinMode(ledConfig[0], OUTPUT);
 
-  ledStrip1.begin();
-  ledStrip1.setBrightness(255);
-  ledStrip2.begin();
-  ledStrip2.setBrightness(255);
+  led.begin();
+  led.setBrightness(255);
+  
+  int ledStep = 10;
+  for(int i = 295; i >= 1; i-=ledStep){
+      led.fill(led.Color(255, 0, 40, 255), i - ledStep, ledStep);
+      led.fill(led.Color(255, 0, 40, 255), 590 - i, ledStep);
+      led.show();
+  }
+
 
   xTaskCreatePinnedToCore(Fade, "Fade Task", 1024, NULL, 1, &fadeHandle, 1);
   vTaskSuspend(fadeHandle);
@@ -71,13 +74,13 @@ void setup() {
 void loop() {
   if (count >= loops) {
     VerifyConnections();
-    restartCount++;
+//    restartCount++;  
     count = 0;
 
-    if (restartCount >= restartAt) {
-      Serial.println("Restarting...");
-      ESP.restart();
-    }
+//    if (restartCount >= restartAt) {
+//      Serial.println("Restarting...");
+//      ESP.restart();
+//    }
   }
 
   count++;
@@ -117,7 +120,6 @@ void ConnectServer() {
   else {
     Serial.println("WebSockets Not Connected!");
   }
-
 }
 
 String GetAuthToken() {
@@ -189,31 +191,22 @@ void Fade(void * parameter) {
 void Rainbow(void * parameter) {
   while (true) {
     for (long firstPixelHue = 0; firstPixelHue < 5 * 65536; firstPixelHue += 256) {
-      ledStrip1.rainbow(firstPixelHue);
-      ledStrip2.rainbow(firstPixelHue);
-
-      ledStrip1.show();
-      ledStrip2.show();
-
+      led.rainbow(firstPixelHue);
+      led.show();
+      
       delay(delayChange);
     }
   }
 }
 
 void setColor(int r, int g, int b) { 
-  ledStrip1.fill(ledStrip1.Color(r, g, b), 0);
-  ledStrip2.fill(ledStrip2.Color(r, g, b), 0);
-
-  ledStrip1.show();
-  ledStrip2.show();
+  led.fill(led.Color(r, g, b), 0);
+  led.show();
 }
 
 void setColor(int r, int g, int b, int w) { 
-  ledStrip1.fill(ledStrip1.Color(r, g, b, w), 0);
-  ledStrip2.fill(ledStrip2.Color(r, g, b, w), 0);
-
-  ledStrip1.show();
-  ledStrip2.show();
+  led.fill(led.Color(r, g, b, w), 0);
+  led.show();
 }
 
 void SuspendTasks() {
